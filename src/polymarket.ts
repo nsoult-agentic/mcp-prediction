@@ -149,9 +149,9 @@ function parseMarket(m: PolymarketMarket): ParsedMarket {
   let yesPrice = 0;
   let noPrice = 0;
   try {
-    const prices = JSON.parse(m.outcomePrices) as number[];
-    yesPrice = prices[0] ?? 0;
-    noPrice = prices[1] ?? 0;
+    const prices = JSON.parse(m.outcomePrices) as (string | number)[];
+    yesPrice = Number(prices[0]) || 0;
+    noPrice = Number(prices[1]) || 0;
   } catch {
     // malformed data — leave at 0
   }
