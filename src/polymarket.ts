@@ -104,9 +104,7 @@ export async function listMarkets(opts?: {
   params.set("order", "volume");
   params.set("ascending", "false");
 
-  const raw = await apiFetch<PolymarketMarket[]>(
-    `${GAMMA_BASE}/markets?${params}`,
-  );
+  const raw = await apiFetch<PolymarketMarket[]>(`${GAMMA_BASE}/markets?${params}`);
   return raw.map(parseMarket).filter((m) => m.yesPrice > 0);
 }
 
@@ -114,9 +112,7 @@ export async function listMarkets(opts?: {
  * Fetch a single market by ID or slug.
  */
 export async function getMarket(idOrSlug: string): Promise<ParsedMarket> {
-  const raw = await apiFetch<PolymarketMarket>(
-    `${GAMMA_BASE}/markets/${idOrSlug}`,
-  );
+  const raw = await apiFetch<PolymarketMarket>(`${GAMMA_BASE}/markets/${idOrSlug}`);
   return parseMarket(raw);
 }
 

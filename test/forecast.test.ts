@@ -215,12 +215,7 @@ describe("computeBrierScore", () => {
 
 describe("computeWinStats", () => {
   test("tallies wins, losses, total P&L and win rate", () => {
-    const s = computeWinStats([
-      { pnl: 10 },
-      { pnl: -5 },
-      { pnl: 3 },
-      { pnl: -2 },
-    ]);
+    const s = computeWinStats([{ pnl: 10 }, { pnl: -5 }, { pnl: 3 }, { pnl: -2 }]);
     expect(s.wins).toBe(2);
     expect(s.losses).toBe(2);
     expect(s.totalPnl).toBeCloseTo(6, 10); // 10 - 5 + 3 - 2
@@ -250,7 +245,7 @@ describe("computeWinStats", () => {
 
 describe("createRateLimiter", () => {
   test("allows up to the limit, then blocks within the window", () => {
-    let now = 1_000;
+    const now = 1_000;
     const limited = createRateLimiter(3, 60_000, () => now);
     expect(limited()).toBe(false); // 1st
     expect(limited()).toBe(false); // 2nd
@@ -282,7 +277,7 @@ describe("createRateLimiter", () => {
   });
 
   test("default limit is 30 requests per window", () => {
-    let now = 0;
+    const now = 0;
     const limited = createRateLimiter(undefined, undefined, () => now);
     for (let i = 0; i < 30; i++) {
       expect(limited()).toBe(false);
