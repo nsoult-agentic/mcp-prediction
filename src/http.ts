@@ -36,6 +36,15 @@ import {
   saveSnapshot,
   getCash,
 } from "./mock-engine.js";
+import {
+  computeForecast,
+  computeKellySizing,
+  computeBrierScore,
+  computeWinStats,
+  createRateLimiter,
+  MIN_EDGE,
+  MIN_POSITION_USD,
+} from "./forecast.js";
 
 // ── Configuration ──────────────────────────────────────────
 
@@ -44,22 +53,7 @@ const EXCHANGE_MODE = process.env["EXCHANGE_MODE"] || "mock";
 
 // ── Rate Limiter ──────────────────────────────────────────
 
-const RATE_LIMIT = 30;
-const RATE_WINDOW_MS = 60_000;
-const requestTimestamps: number[] = [];
-
-function isRateLimited(): boolean {
-  const now = Date.now();
-  while (
-    requestTimestamps.length > 0 &&
-    requestTimestamps[0] < now - RATE_WINDOW_MS
-  ) {
-    requestTimestamps.shift();
-  }
-  if (requestTimestamps.length >= RATE_LIMIT) return true;
-  requestTimestamps.push(now);
-  return false;
-}
+const isRateLimited = createRateLimiter();
 
 // ── Initialize ────────────────────────────────────────────
 
@@ -206,15 +200,10 @@ function createServer(): McpServer {
         .describe("AI reasoning chain explaining the probability estimate"),
     },
     async ({ market_id, market_question, category, estimates, market_price, reasoning }) => {
-      const sorted = [...estimates].sort((a, b) => a - b);
-      const median =
-        sorted.length % 2 === 0
-          ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
-          : sorted[Math.floor(sorted.length / 2)];
-
-      const edge = median - market_price;
-      const direction = edge > 0 ? "YES" : "NO";
-      const absEdge = Math.abs(edge);
+      const { median, edge, direction, absEdge } = computeForecast(
+        estimates,
+        market_price,
+      );
 
       const db = getDb();
       const result = db.run(
@@ -238,7 +227,7 @@ function createServer(): McpServer {
       );
 
       const forecastId = Number(result.lastInsertRowid);
-      const tradeable = absEdge >= 0.05;
+      const tradeable = absEdge >= MIN_EDGE;
 
       return {
         content: [
@@ -307,7 +296,7 @@ function createServer(): McpServer {
       }
 
       const absEdge = Math.abs(forecast.edge);
-      if (absEdge < 0.05) {
+      if (absEdge < MIN_EDGE) {
         return {
           content: [
             {
@@ -320,22 +309,20 @@ function createServer(): McpServer {
 
       // Quarter-Kelly position sizing
       const direction = forecast.direction as "YES" | "NO";
-      const price =
-        direction === "YES" ? forecast.market_price : 1 - forecast.market_price;
-      const odds = (1 - price) / price;
-      const kellyFull = absEdge / odds;
-      const kellyAdjusted = kellyFull * kelly_fraction;
       const portfolioValue =
         getCash() +
         getPositions()
           .reduce((sum, p) => sum + p.contracts * p.avg_cost, 0);
-      const positionSize = Math.min(
-        kellyAdjusted * portfolioValue,
-        portfolioValue * 0.05, // hard cap at 5%
-      );
-      const contracts = positionSize / price;
+      const { price, kellyFull, kellyAdjusted, positionSize, contracts } =
+        computeKellySizing(
+          direction,
+          forecast.market_price,
+          absEdge,
+          portfolioValue,
+          kelly_fraction,
+        );
 
-      if (positionSize < 1) {
+      if (positionSize < MIN_POSITION_USD) {
         return {
           content: [
             {
@@ -439,25 +426,14 @@ function createServer(): McpServer {
       // Brier score from resolved forecasts
       const resolved = db
         .query<
-          { median_estimate: number; outcome: number },
+          { median_estimate: number; outcome: 0 | 1 },
           []
         >(
           "SELECT median_estimate, outcome FROM forecasts WHERE resolved = 1 AND traded = 1",
         )
         .all();
 
-      let brierScore = 0;
-      let wins = 0;
-      let losses = 0;
-      let totalPnl = 0;
-
-      for (const r of resolved) {
-        const prob =
-          r.outcome === 1 ? r.median_estimate : 1 - r.median_estimate;
-        brierScore += (1 - prob) ** 2;
-        // Win/loss from forecasts table
-      }
-      brierScore = resolved.length > 0 ? brierScore / resolved.length : 0;
+      const brierScore = computeBrierScore(resolved);
 
       // Win rate from P&L
       const pnlRows = db
@@ -465,11 +441,7 @@ function createServer(): McpServer {
           "SELECT pnl FROM forecasts WHERE resolved = 1 AND traded = 1",
         )
         .all();
-      for (const r of pnlRows) {
-        if (r.pnl > 0) wins++;
-        else losses++;
-        totalPnl += r.pnl;
-      }
+      const { wins, losses, totalPnl } = computeWinStats(pnlRows);
 
       const text = [
         `=== Portfolio Performance (${EXCHANGE_MODE} mode) ===`,

@@ -145,7 +145,7 @@ export async function getOrderbook(tokenId: string): Promise<Orderbook> {
 
 // ── Parser ─────────────────────────────────────────────
 
-function parseMarket(m: PolymarketMarket): ParsedMarket {
+export function parseMarket(m: PolymarketMarket): ParsedMarket {
   let yesPrice = 0;
   let noPrice = 0;
   try {
