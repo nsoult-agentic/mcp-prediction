@@ -98,9 +98,7 @@ export function restoreState(): void {
     if (existing) {
       const totalContracts = existing.contracts + row.contracts;
       existing.avg_cost =
-        (existing.avg_cost * existing.contracts +
-          row.fill_price * row.contracts) /
-        totalContracts;
+        (existing.avg_cost * existing.contracts + row.fill_price * row.contracts) / totalContracts;
       existing.contracts = totalContracts;
     } else {
       positions.set(key, {
@@ -113,9 +111,7 @@ export function restoreState(): void {
     }
   }
 
-  console.log(
-    `[mock-engine] Restored: $${cash.toFixed(2)} cash, ${positions.size} positions`,
-  );
+  console.log(`[mock-engine] Restored: $${cash.toFixed(2)} cash, ${positions.size} positions`);
 }
 
 // ── Trade Execution ────────────────────────────────────
@@ -181,8 +177,7 @@ export function executeTrade(
   if (existing) {
     const totalContracts = existing.contracts + contracts;
     existing.avg_cost =
-      (existing.avg_cost * existing.contracts + marketPrice * contracts) /
-      totalContracts;
+      (existing.avg_cost * existing.contracts + marketPrice * contracts) / totalContracts;
     existing.contracts = totalContracts;
   } else {
     positions.set(existingKey, {
@@ -229,8 +224,7 @@ export function resolveMarket(
     const pos = positions.get(key);
     if (!pos) continue;
 
-    const won =
-      (dir === "YES" && outcome === 1) || (dir === "NO" && outcome === 0);
+    const won = (dir === "YES" && outcome === 1) || (dir === "NO" && outcome === 0);
     const payout = won ? pos.contracts * 1.0 : 0; // Winning = $1/contract
     const pnl = payout - pos.contracts * pos.avg_cost;
 
@@ -261,9 +255,7 @@ function getPortfolioValue(): number {
   return cash + positionsValue;
 }
 
-export function getPositions(
-  currentPrices?: Map<string, number>,
-): Position[] {
+export function getPositions(currentPrices?: Map<string, number>): Position[] {
   const result: Position[] = [];
   for (const pos of positions.values()) {
     const currentPrice = currentPrices?.get(pos.market_id) ?? pos.avg_cost;
@@ -290,8 +282,7 @@ export function getPortfolioSummary(): PortfolioSummary {
   const positionsValue = totalValue - cash;
   const cumulativePnl = totalValue - INITIAL_CAPITAL;
   peakValue = Math.max(peakValue, totalValue);
-  const maxDrawdown =
-    peakValue > 0 ? (peakValue - totalValue) / peakValue : 0;
+  const maxDrawdown = peakValue > 0 ? (peakValue - totalValue) / peakValue : 0;
 
   return {
     total_value: totalValue,

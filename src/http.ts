@@ -22,11 +22,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { z } from "zod";
 import { getDb } from "./db.js";
-import {
-  listMarkets,
-  getMarket,
-  type ParsedMarket,
-} from "./polymarket.js";
+import { listMarkets, getMarket } from "./polymarket.js";
 import {
   restoreState,
   executeTrade,
@@ -75,12 +71,7 @@ function createServer(): McpServer {
     "prediction-list-markets",
     "List active Polymarket markets sorted by volume. Returns market ID, question, YES/NO prices, volume, liquidity, and category.",
     {
-      limit: z
-        .number()
-        .min(1)
-        .max(100)
-        .default(20)
-        .describe("Number of markets to return (1-100)"),
+      limit: z.number().min(1).max(100).default(20).describe("Number of markets to return (1-100)"),
       category: z
         .string()
         .optional()
@@ -93,9 +84,7 @@ function createServer(): McpServer {
     async ({ limit, category, min_volume }) => {
       if (isRateLimited()) {
         return {
-          content: [
-            { type: "text", text: "Rate limited. Try again in 60 seconds." },
-          ],
+          content: [{ type: "text", text: "Rate limited. Try again in 60 seconds." }],
         };
       }
 
@@ -104,9 +93,7 @@ function createServer(): McpServer {
 
         if (category) {
           const cat = category.toLowerCase();
-          markets = markets.filter(
-            (m) => m.category.toLowerCase().includes(cat),
-          );
+          markets = markets.filter((m) => m.category.toLowerCase().includes(cat));
         }
         if (min_volume) {
           markets = markets.filter((m) => m.volume >= min_volume);
@@ -190,20 +177,11 @@ function createServer(): McpServer {
         .min(1)
         .max(10)
         .describe("Array of probability estimates (0-1) from ensemble runs"),
-      market_price: z
-        .number()
-        .min(0)
-        .max(1)
-        .describe("Current market YES price (0-1)"),
-      reasoning: z
-        .string()
-        .describe("AI reasoning chain explaining the probability estimate"),
+      market_price: z.number().min(0).max(1).describe("Current market YES price (0-1)"),
+      reasoning: z.string().describe("AI reasoning chain explaining the probability estimate"),
     },
     async ({ market_id, market_question, category, estimates, market_price, reasoning }) => {
-      const { median, edge, direction, absEdge } = computeForecast(
-        estimates,
-        market_price,
-      );
+      const { median, edge, direction, absEdge } = computeForecast(estimates, market_price);
 
       const db = getDb();
       const result = db.run(
@@ -289,9 +267,7 @@ function createServer(): McpServer {
       }
       if (forecast.traded) {
         return {
-          content: [
-            { type: "text", text: `Forecast #${forecast_id} already traded` },
-          ],
+          content: [{ type: "text", text: `Forecast #${forecast_id} already traded` }],
         };
       }
 
@@ -310,17 +286,14 @@ function createServer(): McpServer {
       // Quarter-Kelly position sizing
       const direction = forecast.direction as "YES" | "NO";
       const portfolioValue =
-        getCash() +
-        getPositions()
-          .reduce((sum, p) => sum + p.contracts * p.avg_cost, 0);
-      const { price, kellyFull, kellyAdjusted, positionSize, contracts } =
-        computeKellySizing(
-          direction,
-          forecast.market_price,
-          absEdge,
-          portfolioValue,
-          kelly_fraction,
-        );
+        getCash() + getPositions().reduce((sum, p) => sum + p.contracts * p.avg_cost, 0);
+      const { price, kellyFull, kellyAdjusted, positionSize, contracts } = computeKellySizing(
+        direction,
+        forecast.market_price,
+        absEdge,
+        portfolioValue,
+        kelly_fraction,
+      );
 
       if (positionSize < MIN_POSITION_USD) {
         return {
@@ -345,9 +318,7 @@ function createServer(): McpServer {
 
         if (!result.success) {
           return {
-            content: [
-              { type: "text", text: `Trade failed: ${result.error}` },
-            ],
+            content: [{ type: "text", text: `Trade failed: ${result.error}` }],
           };
         }
 
@@ -425,10 +396,7 @@ function createServer(): McpServer {
 
       // Brier score from resolved forecasts
       const resolved = db
-        .query<
-          { median_estimate: number; outcome: 0 | 1 },
-          []
-        >(
+        .query<{ median_estimate: number; outcome: 0 | 1 }, []>(
           "SELECT median_estimate, outcome FROM forecasts WHERE resolved = 1 AND traded = 1",
         )
         .all();
@@ -437,9 +405,7 @@ function createServer(): McpServer {
 
       // Win rate from P&L
       const pnlRows = db
-        .query<{ pnl: number }, []>(
-          "SELECT pnl FROM forecasts WHERE resolved = 1 AND traded = 1",
-        )
+        .query<{ pnl: number }, []>("SELECT pnl FROM forecasts WHERE resolved = 1 AND traded = 1")
         .all();
       const { wins, losses, totalPnl } = computeWinStats(pnlRows);
 
@@ -471,11 +437,7 @@ function createServer(): McpServer {
     "Record the resolution of a market (YES=1, NO=0). Updates positions and computes realized P&L.",
     {
       market_id: z.string().describe("Polymarket market ID"),
-      outcome: z
-        .number()
-        .min(0)
-        .max(1)
-        .describe("Resolution: 1 = YES won, 0 = NO won"),
+      outcome: z.number().min(0).max(1).describe("Resolution: 1 = YES won, 0 = NO won"),
     },
     async ({ market_id, outcome }) => {
       const result = resolveMarket(market_id, outcome as 0 | 1);
@@ -539,9 +501,7 @@ function createServer(): McpServer {
       query += " ORDER BY created_at DESC LIMIT ?";
       params.push(limit);
 
-      const rows = db
-        .query<Record<string, unknown>, (string | number)[]>(query)
-        .all(...params);
+      const rows = db.query<Record<string, unknown>, (string | number)[]>(query).all(...params);
 
       if (rows.length === 0) {
         return {
@@ -554,7 +514,7 @@ function createServer(): McpServer {
         const pnl = r.resolved ? `P&L: $${Number(r.pnl).toFixed(2)}` : "OPEN";
         return [
           `#${r.id} [${r.direction}] ${r.market_question}`,
-          `  AI: ${((Number(r.median_estimate)) * 100).toFixed(1)}% | Mkt: ${((Number(r.market_price)) * 100).toFixed(1)}% | Edge: ${edge > 0 ? "+" : ""}${(edge * 100).toFixed(1)}pp | ${pnl}`,
+          `  AI: ${(Number(r.median_estimate) * 100).toFixed(1)}% | Mkt: ${(Number(r.market_price) * 100).toFixed(1)}% | Edge: ${edge > 0 ? "+" : ""}${(edge * 100).toFixed(1)}pp | ${pnl}`,
           `  Reasoning: ${String(r.reasoning || "").slice(0, 200)}${String(r.reasoning || "").length > 200 ? "..." : ""}`,
         ].join("\n");
       });
@@ -578,19 +538,19 @@ function createServer(): McpServer {
     {},
     async () => {
       const db = getDb();
-      const totalForecasts = db
-        .query<{ count: number }, []>("SELECT COUNT(*) as count FROM forecasts")
-        .get()?.count ?? 0;
-      const tradedForecasts = db
-        .query<{ count: number }, []>(
-          "SELECT COUNT(*) as count FROM forecasts WHERE traded = 1",
-        )
-        .get()?.count ?? 0;
-      const resolvedForecasts = db
-        .query<{ count: number }, []>(
-          "SELECT COUNT(*) as count FROM forecasts WHERE resolved = 1",
-        )
-        .get()?.count ?? 0;
+      const totalForecasts =
+        db.query<{ count: number }, []>("SELECT COUNT(*) as count FROM forecasts").get()?.count ??
+        0;
+      const tradedForecasts =
+        db
+          .query<{ count: number }, []>("SELECT COUNT(*) as count FROM forecasts WHERE traded = 1")
+          .get()?.count ?? 0;
+      const resolvedForecasts =
+        db
+          .query<{ count: number }, []>(
+            "SELECT COUNT(*) as count FROM forecasts WHERE resolved = 1",
+          )
+          .get()?.count ?? 0;
       const lastCycle = db
         .query<{ timestamp: string; cycle_status: string }, []>(
           "SELECT timestamp, cycle_status FROM system_health ORDER BY id DESC LIMIT 1",
@@ -629,10 +589,9 @@ Bun.serve({
 
     // Health check
     if (url.pathname === "/health") {
-      return new Response(
-        JSON.stringify({ status: "ok", mode: EXCHANGE_MODE }),
-        { headers: { "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ status: "ok", mode: EXCHANGE_MODE }), {
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     // MCP endpoint
@@ -649,6 +608,4 @@ Bun.serve({
   },
 });
 
-console.log(
-  `[mcp-prediction] Listening on port ${PORT} (${EXCHANGE_MODE} mode)`,
-);
+console.log(`[mcp-prediction] Listening on port ${PORT} (${EXCHANGE_MODE} mode)`);

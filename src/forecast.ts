@@ -27,9 +27,7 @@ export function computeMedian(estimates: number[]): number {
   const sorted = [...estimates].sort((a, b) => a - b);
   const n = sorted.length;
   if (n === 0) return NaN;
-  return n % 2 === 0
-    ? (sorted[n / 2 - 1]! + sorted[n / 2]!) / 2
-    : sorted[Math.floor(n / 2)]!;
+  return n % 2 === 0 ? (sorted[n / 2 - 1]! + sorted[n / 2]!) / 2 : sorted[Math.floor(n / 2)]!;
 }
 
 // ── Forecast (median / edge / direction / tradeable) ─────────────────────────
@@ -50,10 +48,7 @@ export interface Forecast {
  * direction is YES when the AI thinks the event is MORE likely than the market
  * (edge > 0), NO otherwise. A zero edge is treated as NO (no positive edge).
  */
-export function computeForecast(
-  estimates: number[],
-  marketPrice: number,
-): Forecast {
+export function computeForecast(estimates: number[], marketPrice: number): Forecast {
   const median = computeMedian(estimates);
   const edge = median - marketPrice;
   const absEdge = Math.abs(edge);
@@ -117,9 +112,7 @@ export function computeKellySizing(
  * (1 - median_estimate). The squared error is (1 - prob)^2. Lower is better;
  * a perfect forecaster scores 0. Empty input returns 0.
  */
-export function computeBrierScore(
-  resolved: { median_estimate: number; outcome: 0 | 1 }[],
-): number {
+export function computeBrierScore(resolved: { median_estimate: number; outcome: 0 | 1 }[]): number {
   if (resolved.length === 0) return 0;
   let sum = 0;
   for (const r of resolved) {

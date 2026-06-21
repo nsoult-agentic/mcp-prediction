@@ -80,9 +80,7 @@ describe("parseMarket", () => {
 
   test("accepts numeric (non-string) price entries too", () => {
     // Gamma sometimes returns numbers rather than strings; Number() handles both
-    const m = parseMarket(
-      raw({ outcomePrices: JSON.stringify([0.7, 0.3]) }),
-    );
+    const m = parseMarket(raw({ outcomePrices: JSON.stringify([0.7, 0.3]) }));
     expect(m.yesPrice).toBeCloseTo(0.7, 10);
     expect(m.noPrice).toBeCloseTo(0.3, 10);
   });
