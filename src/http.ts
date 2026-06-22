@@ -214,7 +214,7 @@ function createServer(): McpServer {
             text: [
               `Forecast #${forecastId} recorded:`,
               `  Market: ${market_question}`,
-              `  AI Estimate: ${(median * 100).toFixed(1)}% (ensemble: ${estimates.map((e) => (e * 100).toFixed(0) + "%").join(", ")})`,
+              `  AI Estimate: ${(median * 100).toFixed(1)}% (ensemble: ${estimates.map((e) => `${(e * 100).toFixed(0)}%`).join(", ")})`,
               `  Market Price: ${(market_price * 100).toFixed(1)}%`,
               `  Edge: ${edge > 0 ? "+" : ""}${(edge * 100).toFixed(1)}pp → ${direction}`,
               `  Tradeable: ${tradeable ? "YES (edge ≥ 5pp)" : "NO (edge < 5pp)"}`,
@@ -510,12 +510,13 @@ function createServer(): McpServer {
       }
 
       const lines = rows.map((r) => {
-        const edge = Number(r.edge) || 0;
-        const pnl = r.resolved ? `P&L: $${Number(r.pnl).toFixed(2)}` : "OPEN";
+        const edge = Number(r["edge"]) || 0;
+        const pnl = r["resolved"] ? `P&L: $${Number(r["pnl"]).toFixed(2)}` : "OPEN";
+        const reasoning = String(r["reasoning"] || "");
         return [
-          `#${r.id} [${r.direction}] ${r.market_question}`,
-          `  AI: ${(Number(r.median_estimate) * 100).toFixed(1)}% | Mkt: ${(Number(r.market_price) * 100).toFixed(1)}% | Edge: ${edge > 0 ? "+" : ""}${(edge * 100).toFixed(1)}pp | ${pnl}`,
-          `  Reasoning: ${String(r.reasoning || "").slice(0, 200)}${String(r.reasoning || "").length > 200 ? "..." : ""}`,
+          `#${r["id"]} [${r["direction"]}] ${r["market_question"]}`,
+          `  AI: ${(Number(r["median_estimate"]) * 100).toFixed(1)}% | Mkt: ${(Number(r["market_price"]) * 100).toFixed(1)}% | Edge: ${edge > 0 ? "+" : ""}${(edge * 100).toFixed(1)}pp | ${pnl}`,
+          `  Reasoning: ${reasoning.slice(0, 200)}${reasoning.length > 200 ? "..." : ""}`,
         ].join("\n");
       });
 
@@ -597,9 +598,9 @@ Bun.serve({
     // MCP endpoint
     if (url.pathname === "/mcp" && req.method === "POST") {
       const server = createServer();
-      const transport = new WebStandardStreamableHTTPServerTransport({
-        sessionIdGenerator: undefined,
-      });
+      // Stateless mode: omitting sessionIdGenerator leaves it undefined (session
+      // management disabled), behaviorally identical to passing `undefined`.
+      const transport = new WebStandardStreamableHTTPServerTransport({});
       await server.connect(transport);
       return transport.handleRequest(req);
     }

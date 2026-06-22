@@ -1,29 +1,15 @@
 /**
  * Polymarket API client — fetches live market data from Gamma API.
- * Read-only operations only (market listing, prices, orderbook).
+ * Read-only operations only (market listing, prices).
  * No authentication needed for public data.
  *
  * APIs:
- *   Gamma API  — market metadata, events (gamma-api.polymarket.com)
- *   CLOB API   — orderbook, prices (clob.polymarket.com)
+ *   Gamma API  — market metadata (gamma-api.polymarket.com)
  */
 
 const GAMMA_BASE = "https://gamma-api.polymarket.com";
-const CLOB_BASE = "https://clob.polymarket.com";
 
 // ── Types ──────────────────────────────────────────────
-
-export interface PolymarketEvent {
-  id: string;
-  slug: string;
-  title: string;
-  description: string;
-  active: boolean;
-  closed: boolean;
-  markets: PolymarketMarket[];
-  startDate: string;
-  endDate: string;
-}
 
 export interface PolymarketMarket {
   id: string;
@@ -55,18 +41,6 @@ export interface ParsedMarket {
   endDate: string;
   category: string;
   description: string;
-}
-
-export interface OrderbookEntry {
-  price: string;
-  size: string;
-}
-
-export interface Orderbook {
-  market: string;
-  asset_id: string;
-  bids: OrderbookEntry[];
-  asks: OrderbookEntry[];
 }
 
 // ── Fetch Helper ───────────────────────────────────────
@@ -114,29 +88,6 @@ export async function listMarkets(opts?: {
 export async function getMarket(idOrSlug: string): Promise<ParsedMarket> {
   const raw = await apiFetch<PolymarketMarket>(`${GAMMA_BASE}/markets/${idOrSlug}`);
   return parseMarket(raw);
-}
-
-/**
- * Fetch events (groups of related markets).
- */
-export async function listEvents(opts?: {
-  limit?: number;
-  active?: boolean;
-}): Promise<PolymarketEvent[]> {
-  const params = new URLSearchParams();
-  params.set("limit", String(opts?.limit ?? 50));
-  params.set("active", String(opts?.active ?? true));
-  params.set("order", "volume");
-  params.set("ascending", "false");
-
-  return apiFetch<PolymarketEvent[]>(`${GAMMA_BASE}/events?${params}`);
-}
-
-/**
- * Fetch orderbook for a market from CLOB API.
- */
-export async function getOrderbook(tokenId: string): Promise<Orderbook> {
-  return apiFetch<Orderbook>(`${CLOB_BASE}/book?token_id=${tokenId}`);
 }
 
 // ── Parser ─────────────────────────────────────────────

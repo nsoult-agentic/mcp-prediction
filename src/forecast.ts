@@ -13,8 +13,8 @@ export const MAX_POSITION_FRACTION = 0.05; // hard cap: 5% of portfolio per posi
 export const DEFAULT_KELLY_FRACTION = 0.25; // quarter-Kelly
 export const MIN_POSITION_USD = 1; // minimum position size in dollars
 
-export const RATE_LIMIT = 30;
-export const RATE_WINDOW_MS = 60_000;
+const RATE_LIMIT = 30;
+const RATE_WINDOW_MS = 60_000;
 
 // ── Ensemble median ─────────────────────────────────────────────────────────
 
@@ -27,7 +27,14 @@ export function computeMedian(estimates: number[]): number {
   const sorted = [...estimates].sort((a, b) => a - b);
   const n = sorted.length;
   if (n === 0) return NaN;
-  return n % 2 === 0 ? (sorted[n / 2 - 1]! + sorted[n / 2]!) / 2 : sorted[Math.floor(n / 2)]!;
+  if (n % 2 === 0) {
+    const lo = sorted[n / 2 - 1];
+    const hi = sorted[n / 2];
+    if (lo === undefined || hi === undefined) return NaN;
+    return (lo + hi) / 2;
+  }
+  const mid = sorted[Math.floor(n / 2)];
+  return mid === undefined ? NaN : mid;
 }
 
 // ── Forecast (median / edge / direction / tradeable) ─────────────────────────
@@ -171,8 +178,10 @@ export function createRateLimiter(
   const timestamps: number[] = [];
   return function isRateLimited(): boolean {
     const t = now();
-    while (timestamps.length > 0 && timestamps[0]! < t - windowMs) {
+    let oldest = timestamps[0];
+    while (oldest !== undefined && oldest < t - windowMs) {
       timestamps.shift();
+      oldest = timestamps[0];
     }
     if (timestamps.length >= limit) return true;
     timestamps.push(t);
