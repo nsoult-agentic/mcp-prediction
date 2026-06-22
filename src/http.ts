@@ -125,7 +125,7 @@ function createServer(): McpServer {
 
   server.tool(
     "prediction-get-market",
-    "Get detailed information about a specific Polymarket market including description, prices, volume, and orderbook depth.",
+    "Get detailed information about a specific Polymarket market including description, prices, volume, and liquidity.",
     {
       market_id: z.string().describe("Polymarket market ID or slug"),
     },
